@@ -88,7 +88,9 @@ ssh -N -L 8000:127.0.0.1:8000 "${SSH_TARGET:?请先设置实际 SSH 目标}"
 
 ### GitHub SSH 身份
 
-`allira` 用户使用仓库专用 Ed25519 身份，私钥只保存在服务器 `/home/allira/.ssh`，目录权限 0700、私钥权限 0600。SSH 别名 `github-allira` 固定使用该身份，仓库 origin 为 `git@github-allira:GUYU2233/AlliraAi.git`；它是正常 GitHub SSH 地址的本机专用别名，不是其它托管服务。GitHub 端需添加此身份的公钥为本仓库的 Deploy key，并启用写权限，才能完成推送。该身份不应授权给无关仓库；私钥不应复制到源码、笔记本或聊天中，只有公钥可以提供给 GitHub。
+`allira` 用户使用为本项目单独生成的 Ed25519 身份，私钥只保存在服务器 `/home/allira/.ssh`，目录权限 0700、私钥权限 0600。SSH 别名 `github-allira` 固定使用该身份，仓库 origin 为 `git@github-allira:GUYU2233/AlliraAi.git`；它是正常 GitHub SSH 地址的本机专用别名，不是其它托管服务。
+
+当前公钥实际添加在 `GUYU2233` 的账号 SSH keys 中，已完成认证和本仓库推送。**账号级 SSH key 并非仅限本仓库，可访问范围取决于该账号的权限。** 若需收窄为单仓库访问，应另行生成新身份，添加为本仓库的可写 Deploy key，验证后再撤销旧账号级授权；本次不自动变更 GitHub 授权范围。私钥不应复制到源码、笔记本或聊天中，只有公钥可以提供给 GitHub。
 
 SSH 已启用严格主机校验，使用 [GitHub 官方公布的 Ed25519 主机密钥](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints)；不要为连接方便关闭主机校验。提交者为 `GUYU2233`，邮箱使用 GitHub 的公开 noreply 地址；这只是 Git 作者元数据，不代表提交已经签名。
 
@@ -101,7 +103,7 @@ runuser -u allira -- sh -c '
 '
 ```
 
-推送前检查暂存区是否仅包含预期源码，并扫描凭据与运行数据。远端已有历史时先 fetch、检查差异，不默认强推或覆盖；更换密钥时同步更新 GitHub Deploy key，并撤销旧授权。GitHub 仅保存已推送的 Git 内容，不备份数据库、环境文件和服务器私钥；仍需另行安排受保护的运行数据备份。
+推送前检查暂存区是否仅包含预期源码，并扫描凭据与运行数据。远端已有历史时先 fetch、检查差异，不默认强推或覆盖；更换密钥时同步更新对应的 GitHub 账号 SSH key 或仓库 Deploy key，并在新身份验证后撤销旧授权。GitHub 仅保存已推送的 Git 内容，不备份数据库、环境文件和服务器私钥；仍需另行安排受保护的运行数据备份。
 
 ## 数据备份与恢复
 
