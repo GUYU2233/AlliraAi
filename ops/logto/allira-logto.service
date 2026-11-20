@@ -1,0 +1,37 @@
+[Unit]
+Description=Allira private Logto OSS identity provider
+After=network.target allira-identity-db.service
+Requires=allira-identity-db.service
+
+[Service]
+Type=simple
+User=allira
+Group=allira
+WorkingDirectory=/var/lib/allira/logto/releases/v1.46.0/packages/core
+ExecStart=/usr/bin/python3 /opt/allira/workspace/scripts/logto/runtime.py start
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateDevices=true
+# The official mock writes /tmp/logto; that directory is separately owner-only
+# and exists only for explicitly authorized maintenance acceptance tests.
+PrivateTmp=false
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/allira/logto /tmp/logto
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

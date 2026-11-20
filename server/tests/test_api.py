@@ -204,6 +204,27 @@ def test_large_replay_drains_past_database_batch_limit(tmp_path):
         assert streamed[-1]["data"]["message"]["content"] == "你" * 125
 
 
+def test_terminal_conversation_deleted_during_replay_closes_without_stream_error(tmp_path, monkeypatch):
+    settings = Settings(database_path=str(tmp_path / "deleted-replay.sqlite3"), allow_dev_auth=True)
+    app = create_app(settings)
+    with TestClient(app) as client:
+        headers = auth(client)
+        chat = conversation(client, headers)
+        created = run(client, headers, chat["id"])
+        terminal(client, headers, created["id"])
+        original_events = app.state.db.events
+
+        def delete_after_read(run_id, after):
+            batch = original_events(run_id, after)
+            app.state.db.delete_conversation("alice", chat["id"])
+            return batch
+
+        monkeypatch.setattr(app.state.db, "events", delete_after_read)
+        streamed = events(client.get(f"/api/v1/runs/{created['id']}/events", headers=headers))
+        assert streamed[-1]["type"] == "run.completed"
+        assert client.get(f"/api/v1/runs/{created['id']}", headers=headers).status_code == 404
+
+
 def test_cors_is_explicit(tmp_path):
     settings = Settings(
         database_path=str(tmp_path / "cors.sqlite3"), cors_origins=["http://localhost:5173"],

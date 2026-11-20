@@ -14,14 +14,14 @@ const message = {
 const frame = (id, type, data, newline = '\n') =>
   `id: ${id}${newline}event: ${type}${newline}data: ${JSON.stringify(data)}${newline}${newline}`;
 const doneFrame = (id = 3, type = 'run.completed', newline = '\n') =>
-  frame(id, type, { run: { ...run, status: type.slice(4) }, message }, newline);
+  frame(id, type, { run: { ...run, status: type.slice(4) }, message: { ...message, status: type.slice(4) } }, newline);
 const client = (fetch, options = {}) => new AlliraClient({ baseUrl: 'https://allira.example/', fetch, ...options });
 function sse(text, chunkSize = 1, onCancel = () => {}) {
   const bytes = new TextEncoder().encode(text);
   let offset = 0;
   return new Response(new ReadableStream({
     pull(controller) {
-      if (offset === bytes.length) { controller.close(); return; }
+      if (offset >= bytes.length) { controller.close(); return; }
       controller.enqueue(bytes.slice(offset, offset += chunkSize));
     },
     cancel: onCancel,
@@ -65,7 +65,11 @@ test('routes, camelCase payloads, async tokens, pagination, and request signals'
   assert.deepEqual(JSON.parse(calls[5].body), { clientMessageId: run.clientMessageId, content: 'Hello' });
   assert.equal(calls[2].headers.get('Content-Type'), 'application/json');
   assert.equal(calls[1].headers.get('Content-Type'), null);
-  for (const c of calls) assert.equal(c.signal, controller.signal);
+  for (const c of calls) {
+    assert.equal(c.signal, controller.signal);
+    assert.equal(c.credentials, 'omit');
+    assert.equal(c.headers.has('X-CSRF-Token'), false);
+  }
 });
 
 test('base URL supports API URL and rejects non-HTTP/query/fragment URLs', async () => {
@@ -94,7 +98,7 @@ test('SSE decodes split UTF-8, split CRLF, multiline frames, comments and termin
     'id: 2\r\nevent: message.delta\r\ndata: {"messageId":"assistant-1",\r\ndata: "delta":"你好🌍"}\r\n\r\n' +
     doneFrame(3, 'run.completed', '\r\n') + frame(4, 'message.delta', { messageId: 'assistant-1', delta: 'must not appear' });
   let cancelled = false;
-  const events = await collect(client(async () => sse(text, 1, () => { cancelled = true; })).streamRunEvents('r'));
+  const events = await collect(client(async () => sse(text, 1, () => { cancelled = true; })).streamRunEvents(run.id));
   assert.deepEqual(events.map(e => [e.id, e.type]), [[1, 'run.started'], [2, 'message.delta'], [3, 'run.completed']]);
   assert.equal(events[1].data.delta, '你好🌍');
   assert.equal(events[2].data.message.content, '你好🌍');
@@ -109,7 +113,7 @@ for (const type of ['run.completed', 'run.failed', 'run.cancelled']) {
       start(c) { c.enqueue(new TextEncoder().encode(doneFrame(3, type))); },
       cancel() { cancelled = true; },
     })));
-    const events = await collect(sdk.streamRunEvents('r'));
+    const events = await collect(sdk.streamRunEvents(run.id));
     assert.equal(events.length, 1);
     assert.equal(events[0].type, type);
     assert.equal(cancelled, true);
@@ -123,33 +127,35 @@ test('unconfirmed EOF throws with last id; explicit resume uses after and Bearer
     return sse(calls.length === 1 ? frame(1, 'run.started', { run }) : doneFrame(2));
   }, { accessToken: 'secret' });
   const received = [];
-  await assert.rejects(async () => { for await (const e of sdk.streamRunEvents('r')) received.push(e); }, error => error instanceof StreamInterruptedError && error.lastEventId === 1);
+  await assert.rejects(async () => { for await (const e of sdk.streamRunEvents(run.id)) received.push(e); }, error => error instanceof StreamInterruptedError && error.lastEventId === 1);
   assert.equal(calls.length, 1);
-  const resumed = await collect(sdk.streamRunEvents('r', { after: received.at(-1).id }));
+  const resumed = await collect(sdk.streamRunEvents(run.id, { after: received.at(-1).id }));
   assert.equal(resumed[0].id, 2);
-  assert.equal(calls[1].url, 'https://allira.example/api/v1/runs/r/events?after=1');
-  assert.equal(calls[1].init.headers.get('Authorization'), 'Bearer secret');
+  assert.equal(calls[1].url, 'https://allira.example/api/v1/runs/run-1/events?after=1');
+  assert.equal(calls[1].init.headers.get('Authorization') === 'Bearer secret', true);
   assert.equal(calls[1].init.headers.get('Accept'), 'text/event-stream');
+  assert.equal(calls[1].init.credentials, 'omit');
+  assert.equal(calls[1].init.headers.has('X-CSRF-Token'), false);
 });
 
 test('incomplete final frame is not delivered; CR-only streams work', async () => {
-  await assert.rejects(collect(client(async () => sse('id: 1\nevent: run.completed\ndata: {}\n')).streamRunEvents('r')), StreamInterruptedError);
-  const events = await collect(client(async () => sse(doneFrame(1, 'run.completed', '\r'))).streamRunEvents('r'));
+  await assert.rejects(collect(client(async () => sse('id: 1\nevent: run.completed\ndata: {}\n')).streamRunEvents(run.id)), StreamInterruptedError);
+  const events = await collect(client(async () => sse(doneFrame(1, 'run.completed', '\r'))).streamRunEvents(run.id));
   assert.equal(events[0].id, 1);
 });
 
 test('invalid SSE ids, JSON and event types fail explicitly', async () => {
   for (const text of [frame('nope', 'run.started', { run }), frame(1, 'unknown', {}), 'id: 1\nevent: run.started\ndata: !\n\n', frame(1, 'run.started', { run }) + doneFrame(1)]) {
-    await assert.rejects(collect(client(async () => sse(text)).streamRunEvents('r')), StreamProtocolError);
+    await assert.rejects(collect(client(async () => sse(text)).streamRunEvents(run.id)), StreamProtocolError);
   }
   for (const after of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
-    await assert.rejects(collect(client(async () => { throw new Error('must not fetch'); }).streamRunEvents('r', { after })), TypeError);
+    await assert.rejects(collect(client(async () => { throw new Error('must not fetch'); }).streamRunEvents(run.id, { after })), TypeError);
   }
 });
 
 test('stream HTTP error envelope remains an API error', async () => {
   const sdk = client(async () => Response.json({ error: { code: 'not_found', message: 'No run' } }, { status: 404 }));
-  await assert.rejects(collect(sdk.streamRunEvents('r')), error => error instanceof AlliraApiError && error.code === 'not_found' && error.status === 404);
+  await assert.rejects(collect(sdk.streamRunEvents(run.id)), error => error instanceof AlliraApiError && error.code === 'not_found' && error.status === 404);
 });
 
 test('pre-aborted requests propagate original reason without fetch', async () => {
@@ -159,7 +165,7 @@ test('pre-aborted requests propagate original reason without fetch', async () =>
   const reason = new DOMException('Stopped', 'AbortError');
   controller.abort(reason);
   await assert.rejects(sdk.getRun('r', { signal: controller.signal }), error => error === reason);
-  await assert.rejects(collect(sdk.streamRunEvents('r', { signal: controller.signal })), error => error === reason);
+  await assert.rejects(collect(sdk.streamRunEvents(run.id, { signal: controller.signal })), error => error === reason);
   assert.equal(calls, 0);
 });
 
@@ -174,7 +180,7 @@ test('abort during pending stream read is propagated, not translated to EOF', as
       ready();
     },
   })));
-  const result = collect(sdk.streamRunEvents('r', { signal: controller.signal }));
+  const result = collect(sdk.streamRunEvents(run.id, { signal: controller.signal }));
   await opened;
   controller.abort(reason);
   await assert.rejects(result, error => error === reason);
@@ -194,7 +200,7 @@ test('transport interruption preserves the original error and does not reconnect
     }));
   });
   const events = [];
-  await assert.rejects(async () => { for await (const event of sdk.streamRunEvents('r')) events.push(event); }, error => error === failure);
+  await assert.rejects(async () => { for await (const event of sdk.streamRunEvents(run.id)) events.push(event); }, error => error === failure);
   assert.equal(events.length, 1);
   assert.equal(calls, 1);
 });
@@ -211,7 +217,7 @@ test('consumer break releases stream without hidden reconnect', async () => {
   let cancelled = false;
   let calls = 0;
   const sdk = client(async () => { calls++; return sse(frame(1, 'run.started', { run }) + doneFrame(), 2, () => { cancelled = true; }); });
-  for await (const _event of sdk.streamRunEvents('r')) break;
+  for await (const _event of sdk.streamRunEvents(run.id)) break;
   assert.equal(cancelled, true);
   assert.equal(calls, 1);
 });

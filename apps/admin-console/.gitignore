@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.test-dist/
+.build-metadata/
+test-results/
+playwright-report/
+.vite/

@@ -224,6 +224,38 @@ def test_aclose_closes_upstream_but_not_owned_client():
     asyncio.run(run())
 
 
+def test_configured_output_token_limit_is_sent_to_upstream():
+    requests = []
+    async def run():
+        def handler(request):
+            requests.append(request)
+            return httpx.Response(200, content=b"data: [DONE]\n\n")
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            provider = OpenAICompatibleProvider(
+                "https://models.example/v1", "model", None, client=client, max_tokens=32,
+            )
+            assert [text async for text in provider.stream(MESSAGES)] == []
+    asyncio.run(run())
+    assert json.loads(requests[0].content)["max_tokens"] == 32
+
+
+@pytest.mark.parametrize("chunks", [
+    [b"data: " + b"x" * 262145],
+    [b"data: " + b"x" * 200000 + b"\n"] * 6 + [b"\n"],
+    [b":" + b"x" * 65530 + b"\n\n"] * 129,
+])
+def test_upstream_line_event_and_total_limits_close_untrusted_stream(chunks):
+    run, stream = collect(chunks)
+    assert_safe_error(run, "Invalid response from model provider.")
+    assert stream.closed
+
+
+def test_event_size_budget_resets_between_frames():
+    run, stream = collect([event(delta("hello"))] * 3 + [b"data: [DONE]\n\n"])
+    assert asyncio.run(run()) == ["hello", "hello", "hello"]
+    assert stream.closed
+
+
 def test_cancellation_closes_upstream():
     class BlockingStream(ByteStream):
         async def __aiter__(self):

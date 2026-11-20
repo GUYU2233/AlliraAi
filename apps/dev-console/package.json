@@ -1,0 +1,21 @@
+{
+  "name": "@allira/dev-console",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && node build.mjs",
+    "build:test": "npm run typecheck && node build.mjs --test",
+    "test": "npm run build:test && node --experimental-transform-types --test tests/*.test.ts",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "markdown-it": "15.0.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3"
+  }
+}

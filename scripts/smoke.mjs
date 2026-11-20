@@ -5,6 +5,10 @@ import { AlliraClient, AlliraApiError } from '../packages/client/dist/index.js';
 
 const baseUrl = process.env.ALLIRA_SMOKE_BASE_URL ?? 'http://127.0.0.1:8000';
 const bootstrap = new AlliraClient({ baseUrl });
+// Refuse before creating any session/run: automated smoke must never spend relay quota.
+const info = await bootstrap.getInfo();
+assert.equal(info.provider, 'mock', 'This smoke test requires the Mock provider.');
+assert.equal(info.allowDevAuth, true, 'This smoke test requires development authentication.');
 const session = await bootstrap.createDevSession({ userId: 'sdk-smoke' });
 const client = new AlliraClient({ baseUrl, accessToken: session.accessToken });
 const chat = await client.createConversation({ title: 'SDK smoke test', instructions: 'Be kind.' });

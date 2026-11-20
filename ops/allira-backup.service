@@ -1,0 +1,21 @@
+# Same-host private backups. This unit never restores or reads provider environment files.
+[Unit]
+Description=AlliraAi verified local SQLite backup
+After=allira-dev.service
+
+[Service]
+Type=oneshot
+User=allira
+Group=allira
+WorkingDirectory=/opt/allira/workspace/server
+ExecStart=/opt/allira/workspace/server/.venv/bin/python -m allira.backup_cli create --database /var/lib/allira/dev.sqlite3 --output-dir /var/lib/allira/backups/automatic --retain 7
+TimeoutStartSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/allira
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+LockPersonality=true

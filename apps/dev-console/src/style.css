@@ -1,0 +1,68 @@
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; line-height: 1.5; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 1280px; margin: 0 auto; padding: 1rem; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; min-height: 2.5rem; padding: .4rem .7rem; }
+button:disabled { cursor: default; opacity: .55; }
+a { color: LinkText; }
+input:not([type=checkbox]), textarea, select { width: 100%; min-height: 2.5rem; padding: .4rem; border: 1px solid GrayText; border-radius: .2rem; background: Canvas; color: CanvasText; }
+textarea { resize: vertical; }
+label { display: grid; gap: .25rem; margin: .5rem 0; }
+label:has(input[type=checkbox]) { display: flex; align-items: center; gap: .5rem; }
+input[type=checkbox] { min-width: 1.15rem; min-height: 1.15rem; }
+h1 { font-size: 1.5rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1.05rem; }
+.page-header, .identity, .actions, .inline-form { display: flex; align-items: center; flex-wrap: wrap; gap: .65rem; }
+.page-header, .identity { justify-content: space-between; }
+.inline-form label { flex: 1 1 12rem; }
+.chat-layout { display: grid; grid-template-columns: minmax(200px, 260px) minmax(0, 1fr); gap: 1rem; }
+.sidebar { border-inline-end: 1px solid GrayText; padding-inline-end: 1rem; }
+.sidebar > button { margin: .25rem .25rem .25rem 0; }
+.conversation-list { max-height: 32rem; overflow: auto; margin: 1rem 0; }
+.conversation-item { padding: .4rem 0; border-bottom: 1px solid GrayText; }
+.conversation-item button { text-align: start; overflow-wrap: anywhere; width: 100%; }
+.conversation-item button[aria-pressed=true] { outline: 2px solid Highlight; outline-offset: -2px; }
+.conversation-item small { display: block; }
+.chat-panel { min-width: 0; }
+.messages { height: min(50vh, 650px); min-height: 16rem; overflow: auto; overscroll-behavior: contain; border: 1px solid GrayText; padding: .65rem; margin: .5rem 0; }
+.message { padding: .65rem; margin: .65rem 0; border: 1px solid GrayText; border-radius: .25rem; }
+.message.user { margin-inline-start: 1.25rem; }
+.message.assistant { margin-inline-end: 1.25rem; }
+.message-meta { font-size: .85rem; font-weight: 600; }
+.message-content { font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; margin: .4rem 0; }
+.message-markdown { white-space: normal; }
+.message-markdown pre { max-width: 100%; overflow: auto; white-space: pre; padding: .5rem; border: 1px solid GrayText; }
+.message-markdown pre code { overflow-wrap: normal; word-break: normal; }
+.markdown-plain { white-space: pre-wrap; }
+.markdown-code .notice:empty { display: none; }
+.notice { min-height: 1.5rem; overflow-wrap: anywhere; }
+.notice.error { color: light-dark(#9c2020, #ffb4b4); }
+.muted { color: GrayText; }
+.run-status { font-size: .9rem; }
+.pending { border-inline-start: 3px solid GrayText; padding-inline-start: .6rem; }
+.pending:empty { display: none; }
+details { border: 1px solid GrayText; padding: .5rem; } summary { cursor: pointer; }
+.table-wrap { max-width: 100%; overflow: auto; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+caption { text-align: start; font-weight: 600; }
+th, td { border: 1px solid GrayText; padding: .5rem; text-align: start; vertical-align: top; overflow-wrap: anywhere; }
+th { white-space: nowrap; }
+.row-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.confirm-action { border: 1px solid GrayText; padding: .4rem; min-width: 9rem; }
+.confirm-action label { font-size: .85rem; }
+.metrics { display: grid; grid-template-columns: minmax(9rem, 1fr) minmax(5rem, 2fr); max-width: 42rem; }
+.metrics dt, .metrics dd { margin: 0; border-bottom: 1px solid GrayText; padding: .5rem; }
+nav button[aria-current=page] { outline: 2px solid Highlight; }
+.sensitive-detail { margin-top: 1rem; border-top: 1px solid GrayText; }
+code { overflow-wrap: anywhere; }
+[hidden] { display: none !important; }
+@media (max-width: 700px) {
+  main { padding: .6rem; }
+  .chat-layout { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { border-inline-end: 0; border-bottom: 1px solid GrayText; padding: 0 0 1rem; }
+  .conversation-list { max-height: 12rem; }
+  .messages { height: 48vh; }
+  .actions > button { flex: 1 1 auto; }
+  .message.user, .message.assistant { margin-inline: 0; }
+  th, td { padding: .4rem; }
+}

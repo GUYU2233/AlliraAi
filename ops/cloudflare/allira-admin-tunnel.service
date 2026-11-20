@@ -1,0 +1,45 @@
+[Unit]
+Description=Dedicated Allira admin Cloudflare Tunnel (explicit activation only)
+Documentation=https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/
+After=network-online.target allira-dev.service
+# Keep the connector online while deployments temporarily stop/restart the API.
+# Requires= would stop this unit without starting it again when the API returns.
+Wants=network-online.target allira-dev.service
+ConditionPathExists=/var/lib/allira/cloudflare/config.yml
+
+[Service]
+Type=simple
+User=allira
+Group=allira
+WorkingDirectory=/var/lib/allira/cloudflare
+Environment=HOME=/var/lib/allira/cloudflare
+Environment=NO_AUTOUPDATE=true
+UnsetEnvironment=TUNNEL_TOKEN TUNNEL_TOKEN_FILE TUNNEL_CRED_CONTENTS TUNNEL_CRED_FILE TUNNEL_ORIGIN_CERT TUNNEL_CONFIG TUNNEL_URL TUNNEL_HOSTNAME TUNNEL_DISABLE_PATH_NORMALIZATION TUNNEL_METRICS TUNNEL_LOGLEVEL TUNNEL_LOGFILE TUNNEL_LOGDIRECTORY TUNNEL_TRACE_OUTPUT HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+ExecStartPre=/usr/bin/python3 /opt/allira/workspace/scripts/cloudflare/tunnel.py validate
+ExecStart=/opt/allira/tools/cloudflared-2026.11.1/cloudflared --no-autoupdate tunnel --config /var/lib/allira/cloudflare/config.yml run
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/allira/cloudflare
+StandardOutput=null
+StandardError=null
+
+# Intentionally no [Install] target: source preparation must not enable boot startup.
+# Root may install and start explicitly only after SOURCE_READY, Access and DNS gates.

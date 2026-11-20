@@ -1,4 +1,4 @@
-# Development only. A formal production login must replace dev/session before public use.
+# Development API stays loopback-only; only the Access-protected admin host may be tunneled.
 [Unit]
 Description=AlliraAi isolated development API (loopback only)
 After=network.target
@@ -9,7 +9,13 @@ User=allira
 Group=allira
 WorkingDirectory=/opt/allira/workspace/server
 EnvironmentFile=/etc/allira/dev.env
-ExecStart=/opt/allira/workspace/server/.venv/bin/uvicorn allira.app:create_app --factory --host 127.0.0.1 --port 8000 --workers 1 --no-access-log
+# Optional, protected provider override; absent by default and never stored in the repository.
+EnvironmentFile=-/etc/allira/test-provider.env
+# Separate private OIDC settings; maintenance overrides never alter the model secret file.
+EnvironmentFile=-/etc/allira/identity.env
+# Administrator Access identity is independent of model and ordinary OIDC credentials.
+EnvironmentFile=-/etc/allira/access.env
+ExecStart=/opt/allira/workspace/server/.venv/bin/uvicorn allira.app:create_app --factory --host 127.0.0.1 --port 8000 --workers 1 --no-access-log --no-proxy-headers
 Restart=on-failure
 RestartSec=3
 UMask=0077

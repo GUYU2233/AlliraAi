@@ -1,0 +1,5 @@
+# Generated browser-test metadata stays on the remote host.
+test-results/
+playwright-report/
+blob-report/
+.test-dist/

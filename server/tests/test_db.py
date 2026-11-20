@@ -6,13 +6,14 @@ from uuid import uuid4
 
 import pytest
 
+from allira.config import Settings
 from allira.db import APIError, Database
 from allira.schemas import ConversationInput, RunInput
 
 
 @pytest.fixture
 def db():
-    database = Database(":memory:")
+    database = Database(":memory:", Settings(_env_file=None, allow_dev_auth=True))
     yield database
     database.close()
 
@@ -134,3 +135,20 @@ def test_run_creation_rolls_back_all_rows_on_event_failure(db):
         db.create_run("alice", chat.id, RunInput(clientMessageId=uuid4(), content="hello"), 120000)
     assert db.conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0] == 0
     assert db.conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0] == 0
+
+
+def test_atomic_deferred_commit_failure_rolls_back_and_remains_usable(db):
+    db.conn.executescript("""
+        CREATE TABLE parent_guard(id INTEGER PRIMARY KEY);
+        CREATE TABLE child_guard(parentId INTEGER REFERENCES parent_guard(id)
+                                 DEFERRABLE INITIALLY DEFERRED);
+    """)
+    import sqlite3
+    with pytest.raises(sqlite3.IntegrityError), db.atomic():
+        db.conn.execute("INSERT INTO child_guard VALUES (123)")
+    assert not db.conn.in_transaction
+    assert db.conn.execute("SELECT COUNT(*) FROM child_guard").fetchone()[0] == 0
+    with db.atomic():
+        db.conn.execute("INSERT INTO parent_guard VALUES (123)")
+        db.conn.execute("INSERT INTO child_guard VALUES (123)")
+    assert not db.conn.in_transaction
